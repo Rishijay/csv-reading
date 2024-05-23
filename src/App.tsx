@@ -128,8 +128,10 @@ const App: React.FC = () => {
     );
   };
 
-  const handleSendData = () => {
-    data.forEach((record, index) => sendData(record, index));
+  const handleSendData = async () => {
+    for (let i = 0; i < data.length; i++) {
+      await sendData(data[i], i);
+    }
   };
 
   const handleInputChange = (
@@ -145,8 +147,30 @@ const App: React.FC = () => {
     );
   };
 
+  const handleDownloadCSV = () => {
+    const csvData = [
+      ["Name", "Age", "City", "status"],
+      ["John Doe", "30", "New York", "Pending"],
+      ["Jane Smith", "25", "Los Angeles", "Pending"],
+      ["Sam Brown", "22", "Chicago", "Pending"],
+    ];
+
+    const csvContent =
+      "data:text/csv;charset=utf-8," +
+      csvData.map((e) => e.join(",")).join("\n");
+
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", "sample_data.csv");
+    document.body.appendChild(link); // Required for FF
+
+    link.click();
+    document.body.removeChild(link); // Clean up
+  };
+
   return (
-    <div className="App">
+    <div style={{ padding: 20, textAlign: "center" }}>
       <h2>
         React TypeScript Application for CSV Data Handling and API Submission
       </h2>
@@ -155,16 +179,27 @@ const App: React.FC = () => {
         CSV file and displays it in an editable table format. The application
         includes functionality to modify the data directly within the table.
         Additionally, a button is provided to send the data via a POST API
-        request.
+        request. You can also download as sample csv by clicking the button
+        given below.
       </h4>
-      <div className="container">
+      <div
+        style={{
+          display: "block",
+          justifyContent: "center",
+          textAlign: "center",
+        }}
+      >
+        <button onClick={handleDownloadCSV}>Download Sample CSV</button>
         <label
           htmlFor="csvInput"
-          style={{ display: "block", marginBottom: 10 }}
+          style={{ display: "block", marginTop: 30, marginBottom: 10 }}
         >
           Choose CSV File
         </label>
         <input
+          style={{
+            marginLeft: 65,
+          }}
           onChange={handleFileChange}
           id="csvInput"
           name="file"
@@ -175,7 +210,13 @@ const App: React.FC = () => {
             <button onClick={handleSendData}>Send Data</button>
           )}
         </div>
-        <div style={{ marginTop: "3rem" }}>
+        <div
+          style={{
+            marginTop: "3rem",
+            display: "flex",
+            justifyContent: "center",
+          }}
+        >
           {error && <div>{error}</div>}
           {data.length > 0 && (
             <table>
