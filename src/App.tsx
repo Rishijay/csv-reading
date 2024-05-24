@@ -32,6 +32,20 @@ const App: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [file]);
 
+  // Add event listener for beforeunload to show warning dialog
+  useEffect(() => {
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = ""; // Modern browsers require this to show the dialog
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+    };
+  }, []);
+
   // This function will be called when
   // the file input changes
   const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
