@@ -22,12 +22,24 @@ const App: React.FC = () => {
   // correct file extension is not used
   const [error, setError] = useState<string>("");
 
+  // Add asset button name
+  const [addAssetButtonName, setAddAssetButtonName] =
+    useState<string>("Add Assets");
+
+  // Add asset button disbale
+  const [disableAssetButtonName, setDisableAssetButtonName] =
+    useState<boolean>(false);
+
   // This will store the file uploaded by the user
   const [file, setFile] = useState<File | null>(null);
+
+  // This will show/hide final result button to dowload result csv
+  const [showResultButton, setShowResultButton] = useState<string>("none");
 
   useEffect(() => {
     if (file !== null) {
       handleParse();
+      setShowResultButton("none");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [file]);
@@ -92,7 +104,7 @@ const App: React.FC = () => {
       // Add a status column to each record
       const dataWithStatus = parsedData.map((record) => ({
         ...record,
-        status: "Pending",
+        status: "Not Started",
       }));
 
       setData(dataWithStatus);
@@ -101,39 +113,21 @@ const App: React.FC = () => {
   };
 
   const sendData = async (record: DataWithStatus, index: number) => {
-    try {
-      // Transform keys with double underscores into nested objects
-      const transformedRecord = transformKeys(record);
+    // Simulate sending data to an API
+    await axios
+      .post("https://jsonplaceholder.typicode.com/posts", record)
+      .then(() => {
+        updateStatus(index, "Success");
+      })
+      .catch(() => {
+        updateStatus(index, "Failed");
+      });
 
-      // Simulate sending data to an API
-      await axios.post(
-        "https://jsonplaceholder.typicode.com/posts",
-        transformedRecord
-      );
-      updateStatus(index, "Success");
-    } catch (error) {
-      updateStatus(index, "Failed");
+    if (index === data.length - 1) {
+      setShowResultButton("inline");
+      setAddAssetButtonName("Add Assets");
+      setDisableAssetButtonName(false);
     }
-  };
-
-  const transformKeys = (record: DataWithStatus): any => {
-    const transformedRecord: any = {};
-
-    for (const key in record) {
-      if (record.hasOwnProperty(key)) {
-        if (key.includes("__")) {
-          const [parentKey, nestedKey] = key.split("__");
-          if (!transformedRecord[parentKey]) {
-            transformedRecord[parentKey] = {};
-          }
-          transformedRecord[parentKey][nestedKey] = record[key];
-        } else {
-          transformedRecord[key] = record[key];
-        }
-      }
-    }
-
-    return transformedRecord;
   };
 
   const updateStatus = (index: number, status: string) => {
@@ -143,8 +137,23 @@ const App: React.FC = () => {
   };
 
   const handleSendData = async () => {
-    for (let i = 0; i < data.length; i++) {
-      await sendData(data[i], i);
+    setAddAssetButtonName("Adding...");
+    setDisableAssetButtonName(true);
+    for (let index = 0; index < data.length; index++) {
+      const record = data[index];
+      if (
+        record["Triplet Id"]?.trim() !== "" &&
+        record["Asset Id"]?.trim() !== "" &&
+        record["Asset Type "]?.trim() !== "" &&
+        (record["Asset Type"]?.trim() === "SYSTEM" ||
+          record["Asset Type"]?.trim() === "SUPPLIER_SERVICE" ||
+          record["Asset Type"]?.trim() === "INDUSTRY_UTILITY")
+      ) {
+        updateStatus(index, "In Progress");
+        await sendData(data[index], index);
+      } else {
+        updateStatus(index, "Data Incorrect");
+      }
     }
   };
 
@@ -163,10 +172,8 @@ const App: React.FC = () => {
 
   const handleDownloadCSV = () => {
     const csvData = [
-      ["Name", "Age", "City", "status"],
-      ["John Doe", "30", "New York", "Pending"],
-      ["Jane Smith", "25", "Los Angeles", "Pending"],
-      ["Sam Brown", "22", "Chicago", "Pending"],
+      Object.keys(data[0]),
+      ...data.map((row) => Object.values(row)),
     ];
 
     const csvContent =
@@ -176,11 +183,24 @@ const App: React.FC = () => {
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
-    link.setAttribute("download", "sample_data.csv");
+    link.setAttribute("download", "result_data.csv");
     document.body.appendChild(link); // Required for FF
 
     link.click();
     document.body.removeChild(link); // Clean up
+  };
+
+  const getColor = (status: string | undefined) => {
+    if (status === "Success") {
+      return "green";
+    }
+    if (status?.includes("Failed") || status?.includes("Data Incorrect")) {
+      return "red";
+    }
+    if (status?.includes("In Progress")) {
+      return "orange";
+    }
+    return "blue";
   };
 
   return (
@@ -203,12 +223,11 @@ const App: React.FC = () => {
           textAlign: "center",
         }}
       >
-        <button onClick={handleDownloadCSV}>Download Sample CSV</button>
         <label
           htmlFor="csvInput"
           style={{ display: "block", marginTop: 30, marginBottom: 10 }}
         >
-          Choose CSV File
+          Import CSV
         </label>
         <input
           style={{
@@ -221,7 +240,20 @@ const App: React.FC = () => {
         />
         <div style={{ marginTop: 20 }}>
           {data.length > 0 && (
-            <button onClick={handleSendData}>Send Data</button>
+            <>
+              <button
+                onClick={handleSendData}
+                disabled={disableAssetButtonName}
+              >
+                {addAssetButtonName}
+              </button>
+              <button
+                onClick={handleDownloadCSV}
+                style={{ display: showResultButton }}
+              >
+                Download Result CSV
+              </button>
+            </>
           )}
         </div>
         <div
@@ -231,40 +263,47 @@ const App: React.FC = () => {
             justifyContent: "center",
           }}
         >
-          {error && <div>{error}</div>}
-          {data.length > 0 && (
-            <table>
-              <thead>
-                <tr>
-                  {Object.keys(data[0])
-                    .filter((key) => key !== "status")
-                    .map((key, index) => (
-                      <th key={index}>{key}</th>
-                    ))}
-                  <th>Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {data.map((row, rowIndex) => (
-                  <tr key={rowIndex}>
-                    {Object.keys(row)
-                      .filter((key) => key !== "status")
-                      .map((key, colIndex) => (
-                        <td key={colIndex}>
-                          <input
-                            type="text"
-                            value={row[key]}
-                            onChange={(e) =>
-                              handleInputChange(e, rowIndex, key)
-                            }
-                          />
+          {error ? (
+            <div>{error}</div>
+          ) : (
+            <>
+              {data.length > 0 && (
+                <table>
+                  <thead>
+                    <tr>
+                      {Object.keys(data[0])
+                        .filter((key) => key !== "status")
+                        .map((key, index) => (
+                          <th key={index}>{key}</th>
+                        ))}
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {data.map((row, rowIndex) => (
+                      <tr key={rowIndex}>
+                        {Object.keys(row)
+                          .filter((key) => key !== "status")
+                          .map((key, colIndex) => (
+                            <td key={colIndex}>
+                              <input
+                                type="text"
+                                value={row[key]}
+                                onChange={(e) =>
+                                  handleInputChange(e, rowIndex, key)
+                                }
+                              />
+                            </td>
+                          ))}
+                        <td style={{ color: getColor(row.status) }}>
+                          {row.status}
                         </td>
-                      ))}
-                    <td>{row.status}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </>
           )}
         </div>
       </div>
