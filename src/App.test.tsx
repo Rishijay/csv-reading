@@ -133,4 +133,52 @@ describe("App Component", () => {
 
     expect(beforeUnloadEvent.returnValue).toBe(true);
   });
+
+  test("downloads the result CSV with statuses", async () => {
+    render(<App />);
+    const fileInput = screen.getByLabelText(/Import CSV/i);
+    const file = new File(
+      ["Triplet Id,Asset Id,Asset Type\n123,456,SYSTEM"],
+      "example.csv",
+      { type: "text/csv" }
+    );
+
+    // Upload the CSV file
+    fireEvent.change(fileInput, { target: { files: [file] } });
+
+    // Use findByText instead of waitFor + getByText
+    expect(await screen.findByText("Triplet Id")).toBeInTheDocument();
+
+    // Simulate sending the data to enable the download button
+    const addButton = screen.getByText(/Add Assets/i);
+    fireEvent.click(addButton);
+
+    // Mock the axios post call to immediately resolve
+    // (axios.post as jest.Mock).mockResolvedValue({});
+
+    // Wait for the status to update to "In Progress" and then "Success" or "Failed"
+    expect(await screen.findByText(/In Progress/i)).toBeInTheDocument();
+    await new Promise((r) => setTimeout(r, 2000));
+    expect(screen.queryByText(/In Progress/i)).not.toBeInTheDocument();
+
+    // Mock the creation of the link
+    const createElementSpy = jest.spyOn(document, "createElement");
+    const mockLink = document.createElement("a");
+    const clickMock = jest.fn();
+
+    mockLink.click = clickMock;
+    createElementSpy.mockReturnValue(mockLink);
+
+    // Simulate the download button click
+    const downloadButton = screen.getByText(/Download Result CSV/i);
+    fireEvent.click(downloadButton);
+
+    // Verify the link properties and click behavior
+    expect(mockLink.getAttribute("href")).toContain("data:text/csv");
+    expect(mockLink.getAttribute("download")).toBe("result_data.csv");
+    expect(clickMock).toHaveBeenCalled();
+
+    // Clean up the mock
+    createElementSpy.mockRestore();
+  });
 });
