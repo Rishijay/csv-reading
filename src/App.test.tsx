@@ -181,4 +181,24 @@ describe("App Component", () => {
     // Clean up the mock
     createElementSpy.mockRestore();
   });
+
+  test("shows error when CSV file does not contain required headers", async () => {
+    render(<App />);
+    const fileInput = screen.getByLabelText(/Import CSV/i);
+    const invalidFile = new File(
+      ["Header1,Header2,Header3\nValue1,Value2,Value3"],
+      "invalid_example.csv",
+      { type: "text/csv" }
+    );
+
+    // Upload the invalid CSV file
+    fireEvent.change(fileInput, { target: { files: [invalidFile] } });
+
+    // Check if the error message is displayed
+    expect(
+      await screen.findByText(
+        "Please input a valid csv file with Triplet Id, Asset Id, Asset Type in the file"
+      )
+    ).toBeInTheDocument();
+  });
 });

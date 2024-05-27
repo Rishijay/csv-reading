@@ -82,10 +82,6 @@ const App: React.FC = () => {
   };
 
   const handleParse = () => {
-    // If user clicks the parse button without
-    // a file we show an error
-    if (!file) return alert("Enter a valid file");
-
     // Initialize a reader which allows user
     // to read any file or blob.
     const reader = new FileReader();
@@ -101,6 +97,19 @@ const App: React.FC = () => {
       const parsedData = csv?.data;
       if (parsedData.length === 0) return;
 
+      if (
+        !("Triplet Id" in (parsedData[0] as object)) ||
+        !("Asset Id" in (parsedData[0] as object)) ||
+        !("Asset Type" in (parsedData[0] as object))
+      ) {
+        setError(
+          "Please input a valid csv file with Triplet Id, Asset Id, Asset Type in the file"
+        );
+        data.length = 0;
+        setData([]);
+        return;
+      }
+
       // Add a status column to each record
       const dataWithStatus = parsedData.map((record) => ({
         ...record,
@@ -109,7 +118,7 @@ const App: React.FC = () => {
 
       setData(dataWithStatus);
     };
-    reader.readAsText(file);
+    reader.readAsText(file!);
   };
 
   const sendData = async (record: DataWithStatus, index: number) => {
