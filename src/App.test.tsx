@@ -201,4 +201,50 @@ describe("App Component", () => {
       )
     ).toBeInTheDocument();
   });
+
+  test("shows error when an empty CSV file is uploaded", async () => {
+    render(<App />);
+    const fileInput = screen.getByLabelText(/Import CSV/i);
+    const emptyFile = new File([""], "empty.csv", { type: "text/csv" });
+
+    // Upload the empty CSV file
+    fireEvent.change(fileInput, { target: { files: [emptyFile] } });
+
+    // Check if the error message is displayed
+    expect(await screen.findByText("Empty file")).toBeInTheDocument();
+  });
+
+  test("shows download button at the end", async () => {
+    render(<App />);
+    const fileInput = screen.getByLabelText(/Import CSV/i);
+    const file = new File(
+      ["Triplet Id,Asset Id,Asset Type\n123,456,SYSTEM"],
+      "example.csv",
+      { type: "text/csv" }
+    );
+
+    fireEvent.change(fileInput, { target: { files: [file] } });
+
+    await waitFor(() => {
+      expect(screen.getByText("Not Started")).toBeInTheDocument();
+    });
+
+    // Mock send data button click
+    const addButton = screen.getByText(/Add Assets/i);
+    fireEvent.click(addButton);
+
+    // Check if "Adding..." button text is shown
+    expect(addButton).toHaveTextContent("Adding...");
+
+    await waitFor(() => {
+      expect(screen.getByText("Failed")).toBeInTheDocument();
+    });
+
+    // Check if the UI is updated correctly
+    expect(screen.getByText(/Add Assets/i)).toBeInTheDocument();
+    expect(addButton).not.toBeDisabled();
+    expect(screen.getByText(/Download Result CSV/i)).toHaveStyle(
+      "display: inline"
+    );
+  });
 });
